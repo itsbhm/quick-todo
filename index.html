@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickTodo - Version 1.0.0</title>
+
+  <!-- Quill.js CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/2.0.2/quill.snow.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/2.0.2/quill.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.js"></script>
+
+  <style>
+    /* Basic Styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f0f4f8, #d1e4f2);
+      flex-direction: column;
+      transition: background-color 0.3s ease;
+    }
+
+    body.dark-mode {
+      background-color: #2c3e50;
+      color: white;
+    }
+
+    #app {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.3s ease;
+    }
+
+    #app.dark-mode {
+      background-color: #34495e;
+    }
+
+    .app-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .app-header h1 {
+      font-size: 2rem;
+    }
+
+    input,
+    button,
+    select {
+      padding: 15px;
+      font-size: 1.2rem;
+      width: 100%;
+      margin-bottom: 15px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    .task-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex-grow: 1;
+    }
+
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #ccc;
+      gap: 15px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .task-item.completed {
+      background-color: #d3ffd3;
+      opacity: 0.7;
+    }
+
+    .priority {
+      padding: 6px 12px;
+      background-color: #f1f1f1;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .priority.low {
+      background-color: #ffeb3b;
+    }
+
+    .priority.medium {
+      background-color: #ff9800;
+    }
+
+    .priority.high {
+      background-color: #e91e63;
+      color: white;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+    }
+
+    .btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 12px;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    .btn:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+
+    .btn-delete {
+      background-color: #f44336;
+    }
+
+    .form-container {
+      display: flex;
+      flex-direction: column;
+      margin-top: 20px;
+    }
+
+    .form-container input,
+    .form-container select {
+      margin-bottom: 12px;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 500px;
+      max-width: 90%;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      margin-top: 20px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .modal button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      font-size: 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .modal button:hover {
+      background-color: #0056b3;
+    }
+
+    /* Close button for modal footer */
+    .close-btn {
+      background-color: #f44336;
+    }
+
+    /* Footer Styles */
+    .footer {
+      position: relative;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #333;
+      padding: 15px 0;
+      background-color: #fff;
+      border-top: 1px solid #ccc;
+      width: 100%;
+    }
+
+    .footer p {
+      margin: 0;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div class="app-header">
+      <h1>QuickTodo</h1>
+      <p>Version 1.0.0</p>
+      <button @click="toggleDarkMode">Toggle Dark Mode</button>
+      <input v-model="newTaskTitle" placeholder="Enter task title" />
+      <input v-model="newTaskDeadline" type="date" placeholder="Select a deadline" />
+      <select v-model="newTaskPriority">
+        <option value="low">Low Priority</option>
+        <option value="medium" selected>Medium Priority</option>
+        <option value="high">High Priority</option>
+      </select>
+
+      <!-- Add rich text editor for task description -->
+      <div id="description-editor-container"></div>
+      <textarea id="description" v-model="newTaskDescription" style="display:none;"></textarea> <!-- Hidden, managed by Quill -->
+
+      <button @click="addTask" v-if="!editingTask">Add Task</button>
+      <button @click="updateTask" v-if="editingTask">Update Task</button>
+      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+    </div>
+
+    <!-- Filter and Sort Options -->
+    <div>
+      <select v-model="filterStatus">
+        <option value="all">All Tasks</option>
+        <option value="completed">Completed Tasks</option>
+        <option value="pending">Pending Tasks</option>
+      </select>
+      <button @click="sortTasksByPriority">Sort by Priority</button>
+      <button @click="sortTasksByDeadline">Sort by Deadline</button>
+    </div>
+
+    <!-- Task List with Transitions -->
+    <transition-group name="fade" tag="ul" class="task-list">
+      <li v-for="task in filteredTasks" :key="task.id" class="task-item" :class="{ completed: task.completed }">
+        <span @click="viewTaskDetails(task)">{{ task.title }} ({{ task.timestamp }})</span>
+        <span :class="'priority ' + task.priority">{{ task.priority }}</span>
+        <span>{{ task.deadline }}</span>
+        <div class="action-buttons">
+          <button class="btn btn-delete" @click="deleteTask(task.id)">Delete</button>
+          <button class="btn" @click="editTask(task)">Edit</button>
+        </div>
+      </li>
+    </transition-group>
+
+    <div>
+      <button @click="exportTasks">Export Tasks</button>
+      <input type="file" @change="importTasks" />
+      <button @click="clearTasks">Start Fresh</button>
+    </div>
+
+    <!-- Modal Component for Viewing Task Details -->
+    <div v-if="isModalOpen" class="modal-overlay active" @click.self="closeModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Task Details</h2>
+        </div>
+        <div class="modal-body">
+          <p><strong>Title:</strong> {{ selectedTask.title }}</p>
+          <p><strong>Deadline:</strong> {{ selectedTask.deadline }}</p>
+          <p><strong>Priority:</strong> {{ selectedTask.priority }}</p>
+          <div v-html="selectedTask.description"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="close-btn" @click="closeModal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Concept by Shubham Vishwakarma, Build using Artificial intelligence (AI) hosted by GitHub. © 2024 All rights reserved.</p>
+  </div>
+
+  <script>
+    const app = Vue.createApp({
+      data() {
+        return {
+          tasks: [],
+          newTaskTitle: '',
+          newTaskDeadline: '',
+          newTaskPriority: 'medium',
+          newTaskDescription: '',
+          editingTask: null,
+          errorMessage: '',
+          filterStatus: 'all',
+          isDarkMode: false,
+          quill: null,
+          selectedTask: null,
+          isModalOpen: false,
+        };
+      },
+      methods: {
+        addTask() {
+          if (!this.newTaskTitle || !this.newTaskDeadline) {
+            this.errorMessage = 'Task title and deadline are required.';
+            return;
+          }
+
+          const task = {
+            id: Date.now(),
+            title: this.newTaskTitle,
+            completed: false,
+            priority: this.newTaskPriority,
+            deadline: this.newTaskDeadline,
+            timestamp: new Date().toLocaleString(),
+            description: this.quill.root.innerHTML, // Get the description from Quill editor
+          };
+
+          this.tasks.push(task);
+          this.saveTasks();
+          this.resetForm();
+        },
+
+        saveTasks() {
+          localStorage.setItem('tasks', JSON.stringify(this.tasks));
+        },
+
+        editTask(task) {
+          this.newTaskTitle = task.title;
+          this.newTaskDeadline = task.deadline;
+          this.newTaskPriority = task.priority;
+          this.newTaskDescription = task.description;
+          this.editingTask = task;
+
+          // Load the task description into Quill editor
+          this.quill.root.innerHTML = task.description;
+        },
+
+        updateTask() {
+          if (!this.newTaskTitle || !this.newTaskDeadline) {
+            this.errorMessage = 'Task title and deadline are required.';
+            return;
+          }
+
+          this.editingTask.title = this.newTaskTitle;
+          this.editingTask.deadline = this.newTaskDeadline;
+          this.editingTask.priority = this.newTaskPriority;
+          this.editingTask.description = this.quill.root.innerHTML; // Save updated description
+          this.editingTask.timestamp = new Date().toLocaleString();
+
+          this.saveTasks();
+          this.resetForm();
+        },
+
+        resetForm() {
+          this.newTaskTitle = '';
+          this.newTaskPriority = 'medium';
+          this.newTaskDeadline = '';
+          this.newTaskDescription = '';
+          this.editingTask = null;
+          this.errorMessage = '';
+          this.quill.root.innerHTML = ''; // Clear editor
+        },
+
+        toggleDarkMode() {
+          this.isDarkMode = !this.isDarkMode;
+          document.body.classList.toggle('dark-mode', this.isDarkMode);
+          document.getElementById('app').classList.toggle('dark-mode', this.isDarkMode);
+        },
+
+        toggleTaskCompletion(task) {
+          task.completed = !task.completed;
+          this.saveTasks();
+        },
+
+        deleteTask(taskId) {
+          this.tasks = this.tasks.filter(task => task.id !== taskId);
+          this.saveTasks();
+        },
+
+        sortTasksByPriority() {
+          this.tasks.sort((a, b) => {
+            const priorities = ['low', 'medium', 'high'];
+            return priorities.indexOf(a.priority) - priorities.indexOf(b.priority);
+          });
+        },
+
+        sortTasksByDeadline() {
+          this.tasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+        },
+
+        exportTasks() {
+          const tasksJson = JSON.stringify(this.tasks);
+          const blob = new Blob([tasksJson], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'tasks.json';
+          a.click();
+        },
+
+        importTasks(event) {
+          const file = event.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const tasks = JSON.parse(e.target.result);
+              this.tasks = tasks;
+              this.saveTasks();
+            };
+            reader.readAsText(file);
+          }
+        },
+
+        clearTasks() {
+          this.tasks = [];
+          this.saveTasks();
+        },
+
+        viewTaskDetails(task) {
+          this.selectedTask = task;
+          this.isModalOpen = true;
+        },
+
+        closeModal() {
+          this.isModalOpen = false;
+          this.selectedTask = null;
+        }
+      },
+
+      computed: {
+        filteredTasks() {
+          if (this.filterStatus === 'all') {
+            return this.tasks;
+          }
+          return this.tasks.filter(task => this.filterStatus === 'completed' ? task.completed : !task.completed);
+        }
+      },
+
+      created() {
+        const storedTasks = JSON.parse(localStorage.getItem('tasks'));
+        if (storedTasks) {
+          this.tasks = storedTasks;
+        }
+      },
+
+      mounted() {
+        this.quill = new Quill('#description-editor-container', {
+          theme: 'snow',
+          placeholder: 'Enter task description...',
+          modules: {
+            toolbar: [
+              [{ 'header': '1' }, { 'header': '2' }],
+              [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+              ['bold', 'italic', 'underline'],
+              [{ 'align': [] }],
+              ['link']
+            ]
+          }
+        });
+      }
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>
